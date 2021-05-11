@@ -1,0 +1,304 @@
+<!DOCTYPE html>
+<html>
+<head>    
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.5.1/jquery.min.js"></script>
+<script>
+
+  var iteration = 0;
+  var hasOpenWindow = false;
+  var areaCode = [];
+  var flag = true;
+  var addressURL = "https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/calendarByDistrict";
+  var pinUrl = "https://cdn-api.co-vin.in/api/v2/appointment/sessions/public/calendarByPin";
+  
+
+  function checkCenter() {
+
+    var selectedDistrict = jQuery("#watchByAddress #district").val();
+    var selectedAge = jQuery("#watchByAddress #age").val();
+    var watchDate = getFormattedDate(jQuery("#watchByAddress #watchDate").val());
+    var pinStart = jQuery("#watchByAddress #pinCodeStart").val();
+    var startPinList = pinStart.trim().length > 0 ? pinStart.split(",") : [];
+
+    if(selectedDistrict != undefined) {
+        
+        jQuery("#centers").html("");
+        var URL =  addressURL + "?district_id="+selectedDistrict+"&date=" + watchDate;
+        $.get(URL,
+
+            function(data){
+                
+                let isAvailableGlobal = false;
+
+                $.each(data.centers, function(idx,obj) {
+                    var isAvailable = false;
+                    var ctr = "<tr>";
+                    
+                    ctr += "<td>" + (obj.name).toUpperCase() + "</td>";
+                    ctr += "<td>" + obj.address + "</td>";
+                    ctr += "<td>" + obj.block_name + "</td>";
+                    ctr += "<td>" + obj.district_name + "</td>";
+                    ctr += "<td>" + obj.fee_type + "</td>";
+                    ctr += "<td>" + obj.pincode + "</td></tr>";
+
+                    if(startPinList.length > 0) {
+                        $.each(startPinList, function(index,value) {
+                            if(startsWith(obj.pincode, value)) {
+                                $.each(obj.sessions, function(iidx,iobj) {
+                                    if((iobj.available_capacity > 0 && iobj.min_age_limit == selectedAge) ) {
+                                        isAvailableGlobal = true;
+                                        isAvailable = true;
+                                        ctr += "<tr><td></td>";
+                                        ctr += "<td>Date</td>";
+                                        ctr += "<td>" + iobj.date + "</td>";
+                                        ctr += "<td>Available Capacity</td>";
+                                        ctr += "<td>" + iobj. available_capacity +"</td></tr>";
+                                    }
+                                });
+                                
+                                if(isAvailable) {
+                                    jQuery("#centers").append(ctr);
+                                }
+                            }
+                        });
+                    } else {
+                        $.each(obj.sessions, function(iidx,iobj) {
+                            if((iobj.available_capacity > 0 && iobj.min_age_limit == selectedAge) ) {
+                                isAvailableGlobal = true;
+                                isAvailable = true;
+                                ctr += "<tr><td></td>";
+                                ctr += "<td>Date</td>";
+                                ctr += "<td>" + iobj.date + "</td>";
+                                ctr += "<td>Available Capacity</td>";
+                                ctr += "<td>" + iobj. available_capacity +"</td></tr>";
+                            }
+                        });
+                        
+                        if(isAvailable) {
+                            jQuery("#centers").append(ctr);
+                        }
+                    }
+
+                    
+                });
+                if(isAvailableGlobal) {
+                    playSound();
+                    if(!hasOpenWindow) {
+                        hasOpenWindow = true;
+                        window.open("https://selfregistration.cowin.gov.in/","_blank");
+                    }
+                } else {
+                    jQuery("#centers").html("<tr><td colspan=\"6\">Vaccination not available ! </td></tr>");
+                }
+                jQuery("#watchByAddress #itr").html(++iteration);
+            }
+        );
+
+    }
+   
+  }
+
+  
+
+  function checkCenterByPin(){
+
+    var pinCode = jQuery("#watchByPin #pinCode").val().split(",");
+    var selectedAge = jQuery("#watchByPin  #age").val();
+    var watchDate = getFormattedDate(jQuery("#watchByPin #watchDate").val());
+
+    $.each(pinCode, function(index,value){
+        jQuery("#centers").html("");
+        var URL =  pinUrl + "?pincode="+pinCode+"&date=" + watchDate;
+        $.get(URL,
+            function(data){
+                
+                let isAvailableGlobal = false;
+
+                $.each(data.centers, function(idx,obj) {
+                    var isAvailable = false;
+                    var ctr = "<tr>";
+                    ctr += "<td>" + (obj.name).toUpperCase() + "</td>";
+                    ctr += "<td>" + obj.address + "</td>";
+                    ctr += "<td>" + obj.block_name + "</td>";
+                    ctr += "<td>" + obj.district_name + "</td>";
+                    ctr += "<td>" + obj.fee_type + "</td>";
+                    ctr += "<td>" + obj.pincode + "</td></tr>";
+                    $.each(obj.sessions, function(iidx,iobj) {
+                        if(iobj.available_capacity > 0 && iobj.min_age_limit == selectedAge) {
+                            isAvailableGlobal = true;
+                            isAvailable = true;
+                            ctr += "<tr><td></td>";
+                            ctr += "<td>Date</td>";
+                            ctr += "<td>" + iobj.date + "</td>";
+                            ctr += "<td>Available Capacity</td>";
+                            ctr += "<td>" + iobj.available_capacity +"</td></tr>";
+                        }
+                    });
+                    if(isAvailable) {
+                        jQuery("#centers").append(ctr);
+                    }
+                });
+                if(isAvailableGlobal) {
+                    playSound();
+                    if(!hasOpenWindow) {
+                        hasOpenWindow = true;
+                        window.open("https://selfregistration.cowin.gov.in/","_blank");
+                    }
+                } else {
+                    jQuery("#centers").html("<tr><td colspan=\"6\">Vaccination not available ! </td></tr>");
+                }
+                jQuery("#watchByPin #itr").html(++iteration);
+            }
+        );
+    });
+    
+  }
+
+  function startsWith(str, word) {
+        return str.toString().startsWith(word);
+  }
+
+  function getFormattedDate(date) {
+    var dt = date.split("-");
+    return dt[2] + "-" + dt[1] + "-" + dt[0];
+  }
+
+  var helpers = {
+        buildDropdown: function(result, dropdown, emptyMessage)
+        {
+            // Remove current options
+            dropdown.html('');
+
+            // Add the empty option with the empty message
+            dropdown.append('<option value="">' + emptyMessage + '</option>');
+
+            // Check result isnt empty
+            if(result != '')
+            {
+                if(result.districts != undefined) {
+                    $.each(result.districts, function(k, v) {
+                        dropdown.append('<option value="' + v.district_id + '">' + v.district_name + '</option>');
+                    });
+                } else if(result.states != undefined) {
+                    $.each(result.states, function(k, v) {
+                        dropdown.append('<option value="' + v.state_id + '">' + v.state_name + '</option>');
+                    });
+                }
+                
+            }
+        }   
+}
+
+var startWatch = function() {
+   
+    playSound();
+    setInterval(function() { checkCenter(); } ,5000);
+}
+var startWatchByPin = function() {
+    setInterval(function() { checkCenterByPin() } ,5000);
+}
+function playSound() {
+   var x = document.getElementById("myAudio");
+   x.play();
+}
+$(document).ready(function(){
+
+    $.ajax({
+        type:"GET",
+        url:"https://cdn-api.co-vin.in/api/v2/admin/location/states",
+        success: function(data){
+            helpers.buildDropdown(data,$("#states"),"--SELECT--");
+        }
+    });
+    $("#states").change(function(){
+        var selectedState = $(this).val();
+        $.ajax({
+            type:"GET",
+            url:"https://cdn-api.co-vin.in/api/v2/admin/location/districts/"+selectedState,
+            success: function(data){
+                helpers.buildDropdown(data,$("#district"),"--SELECT--");
+            }
+        });
+    });
+
+    $("#startWatch").click(startWatch);
+    $("#startWatchByPin").click(startWatchByPin);
+
+});
+</script>
+</head>
+<body>
+
+<div style="width:100%;">
+    <div style="width:50%;float:left;">
+        <form id="watchByAddress">
+            <fieldset>
+                <legend> Select State & District </legend>
+
+                <label for="states">State:</label>
+                <select id="states" name="states"></select>
+
+                <br/> <br/>
+                <label for="district">District:</label>
+                <select id="district" name="district"></select>
+                <br/> <br/>
+                <label for="district">Start Date:</label>
+                <input type="date" id="watchDate" name="watchDate">
+                <br/> <br/>
+                <label for="states">Pincode start with</label>
+                <input type="text" id="pinCodeStart" name="pinCodeStart"/>
+                <br/> <br/>
+                <label for="age">Age</label>
+                <select id="age" name="age">
+                    <option value="45">45</option>
+                    <option value="18">18</option>
+                </select>
+                <input id="startWatch" type="button" value="Start Watch"/> <br/>
+                <h5>Number of Iteration: </h5> <h4 id="itr"></h4>
+            </fieldset>
+        </form>
+    </div>
+    <div style="width:50%;float:left;">
+        <form id="watchByPin">
+            <fieldset>
+                <legend> Select Pind Code and Date</legend>
+                <label for="states">Pincode Single or multiple:</label>
+                <input type="text" id="pinCode" name="pinCode"/>
+                <br/> <br/>
+                <label for="district">Start Date:</label>
+                <input type="date" id="watchDate" name="watchDate">
+                <br/> <br/>
+                <label for="age"><Age/label>
+                <select id="age">
+                    <option value="45">45</option>
+                    <option value="18">18</option>
+                </select>
+                <input id="startWatchByPin" type="button" value="Start Watch"/> <br/>
+                <h5>Number of Iteration: </h5> <h4 id="itr"></h4>
+            </fieldset>
+        </form>
+    </div>
+</div>
+<br/><br/>
+<div style="width:100%;display:grid;">
+    <table border="1">
+        <thead>
+            <tr>
+                <td>Center Name </td>
+                <td>Address</td>
+                <td>Block Name</td>
+                <td>District Name</td>
+                <td>Free Type</td>
+                <td>Pin Code</td>
+            </tr>
+        </thead>
+        <tbody id="centers">
+
+        </tbody>
+    </table>
+</div>
+  <audio id="myAudio">
+    <source src="https://www.w3schools.com/jsref/horse.mp3" type="audio/mpeg">
+  </audio>
+</body>
+</html>
